@@ -66,7 +66,7 @@ public class FastImplementStep(IProcessRunner processRunner) : BaseStep(processR
 
             // Zuerst App im Hintergrund starten
             var startAppResult = await ProcessRunner.RunBashAsync(
-                "Start-Process powershell -ArgumentList \"-NoExit\", \"-File\", \".\\run-uno-net10-desktop.ps1\"",
+                "Start-Process powershell -ArgumentList '-NoExit', '-File', '.\\run-uno-net10-desktop.ps1'",
                 ct: ct);
 
             if (!startAppResult.Success)
