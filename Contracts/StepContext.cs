@@ -1,9 +1,11 @@
+using Automation.Cli.Contracts.Classification;
+
 namespace Automation.Cli.Contracts;
 
 /// <summary>
 /// Gemeinsamer Kontext fuer alle Steps.
 /// </summary>
-public record StepContext
+public sealed class StepContext
 {
     public StepContext(string ticketDescription)
     {
@@ -27,14 +29,39 @@ public record StepContext
     public int? GitHubIssueNumber { get; private set; }
 
     /// <summary>
+    /// Die Klassifizierung des Tickets (nach Classifier-Step).
+    /// </summary>
+    public TicketClassification? Classification { get; set; }
+
+    /// <summary>
+    /// Aktueller Step-Index waehrend der Ausfuehrung.
+    /// </summary>
+    public int CurrentStepIndex { get; set; }
+
+    /// <summary>
+    /// Steps die uebersprungen wurden.
+    /// </summary>
+    public List<string> SkippedSteps { get; } = [];
+
+    /// <summary>
     /// Geladene Tasks vom Ticket.
     /// </summary>
     public List<string> Tasks { get; } = [];
 
     /// <summary>
+    /// Zusaetzlicher Kontext der waehrend der Ausfuehrung gesammelt wird.
+    /// </summary>
+    public Dictionary<string, object> Metadata { get; } = [];
+
+    /// <summary>
     /// Prueft ob ein GitHub Issue erkannt wurde.
     /// </summary>
     public bool IsGitHubIssue => GitHubRepo is not null && GitHubIssueNumber.HasValue;
+
+    /// <summary>
+    /// Prueft ob bereits klassifiziert wurde.
+    /// </summary>
+    public bool IsClassified => Classification is not null;
 
     private void ExtractGitHubInfo()
     {
@@ -68,8 +95,27 @@ public record StepContext
 
         Nutze diese Tools um alle Details, Beschreibungen und SubTasks des Tickets zu laden bevor du mit der Analyse beginnst.
 
-        Fuer die folgenden Tasks beachte du musst nicht Backwards kompatibel sein.
-
         AKTION ERFORDERLICH: Fuehre die angeforderten Aenderungen durch - antworte nicht nur mit einer Beschreibung, sondern erstelle/bearbeite die Dateien direkt!
         """;
+
+    /// <summary>
+    /// Generiert Kontext mit Klassifizierungs-Info.
+    /// </summary>
+    public string GetClassifiedContext()
+    {
+        if (Classification is null)
+            return GetSharedContext();
+
+        return $"""
+            {GetSharedContext()}
+
+            === KLASSIFIZIERUNG ===
+            Typ: {Classification.Type}
+            Scope: {Classification.Scope}
+            Komplexitaet: {Classification.Complexity}
+            Zusammenfassung: {Classification.Summary}
+
+            Geplante Steps: {string.Join(" -> ", Classification.GetOrderedStepIds())}
+            """;
+    }
 }
