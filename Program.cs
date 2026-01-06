@@ -79,6 +79,63 @@ classifyCommand.SetHandler(async (ticket) =>
 
 }, ticketArg);
 
+// === fast Command (schnelle Implementierung ohne Klassifizierung) ===
+var fastCommand = new Command("fast", "Schnelle Implementierung: Fuehrt alles in einem Claude-Aufruf aus, dann visuelle Validierung");
+var fastTicketArg = new Argument<string>("ticket", "Ticket URL oder Beschreibung");
+fastCommand.AddArgument(fastTicketArg);
+fastCommand.SetHandler(async (ticket) =>
+{
+    Console.ForegroundColor = ConsoleColor.Cyan;
+    Console.WriteLine("===============================================");
+    Console.WriteLine("   FAST IMPLEMENTATION MODE");
+    Console.WriteLine("===============================================");
+    Console.ResetColor();
+    Console.WriteLine($"Ticket: {ticket}");
+    Console.WriteLine();
+
+    // Erstelle Context mit Frontend-Scope (da Fast-Mode hauptsaechlich fuer Frontend)
+    var context = new StepContext(ticket);
+    context.Tasks.Add(ticket);
+    context.Classification = new TicketClassification
+    {
+        Type = TicketType.Enhancement,
+        Scope = LayerScope.Frontend,
+        Complexity = Complexity.Simple,
+        Summary = ticket,
+        Tasks = [ticket],
+        Steps = []
+    };
+
+    // FastImplementStep direkt ausfuehren
+    var fastStep = registry.GetStep("fast-implement");
+    if (fastStep is null)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("FastImplementStep nicht gefunden!");
+        Console.ResetColor();
+        Environment.ExitCode = 1;
+        return;
+    }
+
+    var result = await fastStep.ExecuteAsync(context);
+    Environment.ExitCode = result.Success ? 0 : 1;
+
+    Console.WriteLine();
+    if (result.Success)
+    {
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("   FAST IMPLEMENTATION ERFOLGREICH");
+    }
+    else
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"   FAST IMPLEMENTATION FEHLGESCHLAGEN: {result.Error}");
+    }
+    Console.ResetColor();
+    Console.WriteLine("===============================================");
+
+}, fastTicketArg);
+
 // === list-steps Command ===
 var listStepsCommand = new Command("list-steps", "Liste aller verfuegbaren Steps");
 listStepsCommand.SetHandler(() =>
@@ -127,6 +184,7 @@ stepCommand.SetHandler(async (stepName, ticket) =>
 
 // Commands registrieren
 rootCommand.AddCommand(smartCommand);
+rootCommand.AddCommand(fastCommand);
 rootCommand.AddCommand(classifyCommand);
 rootCommand.AddCommand(stepCommand);
 rootCommand.AddCommand(listStepsCommand);

@@ -28,6 +28,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IExecutableStep, ProjectStructureStep>();
         services.AddScoped<IExecutableStep, SkillMappingStep>();
         services.AddScoped<IExecutableStep, ImplementStep>();
+        services.AddScoped<IExecutableStep, FastImplementStep>();
 
         return services;
     }
