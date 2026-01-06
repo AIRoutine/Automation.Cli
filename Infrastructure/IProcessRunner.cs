@@ -17,6 +17,11 @@ public interface IProcessRunner
     /// Fuehrt GitHub CLI aus.
     /// </summary>
     Task<ProcessResult> RunGitHubAsync(string arguments, CancellationToken ct = default);
+
+    /// <summary>
+    /// Fuehrt einen PowerShell/Bash Befehl aus.
+    /// </summary>
+    Task<ProcessResult> RunBashAsync(string command, string? workingDirectory = null, CancellationToken ct = default);
 }
 
 /// <summary>

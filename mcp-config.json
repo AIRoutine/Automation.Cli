@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "uno-app": {
+      "command": "dotnet",
+      "args": ["dnx", "-y", "uno.devserver", "--mcp-app"]
+    }
+  }
+}

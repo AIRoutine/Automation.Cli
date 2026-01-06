@@ -13,6 +13,9 @@ public class ProcessRunner : IProcessRunner
     // Navigate from subm/cli to root: subm/cli -> subm -> Lebenslauf
     private static readonly string DefaultWorkingDirectory = GetLebenslaufRootDirectory();
 
+    // Plugin directory and MCP config for uno-dev tools
+    private const string PluginDirectory = @"C:\Users\Daniel\source\repos\ai\claude-plugins\plugins\uno-dev";
+
     private static string GetLebenslaufRootDirectory()
     {
         // Try to find the Lebenslauf root by looking for CLAUDE.md
@@ -37,8 +40,16 @@ public class ProcessRunner : IProcessRunner
     {
         var effectiveWorkingDir = workingDirectory ?? DefaultWorkingDirectory;
 
+        // Uno SDK working directory: must run from src/uno where global.json with Uno.Sdk is located
+        // This is required for dotnet dnx uno.devserver to work (uno-app MCP)
+        var unoSdkWorkingDir = Path.Combine(effectiveWorkingDir, "src", "uno");
+
+        // MCP config is relative to project root
+        var mcpConfigPath = Path.Combine(effectiveWorkingDir, "subm", "cli", "mcp-config.json");
+
         Console.ForegroundColor = ConsoleColor.DarkGray;
-        Console.WriteLine($"[Claude] Working Directory: {effectiveWorkingDir}");
+        Console.WriteLine($"[Claude] Working Directory: {unoSdkWorkingDir}");
+        Console.WriteLine($"[Claude] MCP Config: {mcpConfigPath}");
         Console.ResetColor();
 
         // Write prompt to a temp file to avoid escaping issues
@@ -48,14 +59,18 @@ public class ProcessRunner : IProcessRunner
         try
         {
             // Use PowerShell to run claude with proper argument handling
-            // --dangerously-skip-permissions: auto-approves ALL tool uses in headless mode (no explicit --allowedTools needed)
-            var psCommand = $"Get-Content -Raw '{promptFile}' | claude -p - --dangerously-skip-permissions";
+            // --dangerously-skip-permissions: auto-approves ALL tool uses in headless mode
+            // --plugin-dir: loads uno-dev plugin skills and commands
+            // --mcp-config: loads uno-dev MCP servers (uno-app for visual validation)
+            // --strict-mcp-config: only use MCP servers from config (ignore global MCPs)
+            // Working directory MUST be in src/uno where global.json with Uno.Sdk is located!
+            var psCommand = $"Get-Content -Raw '{promptFile}' | claude -p - --dangerously-skip-permissions --plugin-dir '{PluginDirectory}' --strict-mcp-config --mcp-config '{mcpConfigPath}'";
 
             var startInfo = new ProcessStartInfo
             {
                 FileName = "powershell.exe",
                 Arguments = $"-NoProfile -NonInteractive -Command \"{psCommand}\"",
-                WorkingDirectory = effectiveWorkingDir,
+                WorkingDirectory = unoSdkWorkingDir, // IMPORTANT: Must be src/uno for Uno SDK
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,
@@ -63,7 +78,7 @@ public class ProcessRunner : IProcessRunner
             };
 
             Console.ForegroundColor = ConsoleColor.DarkGray;
-            Console.WriteLine("[Claude] Command: claude -p <prompt> --dangerously-skip-permissions");
+            Console.WriteLine($"[Claude] Command: claude -p <prompt> --dangerously-skip-permissions --plugin-dir ... --strict-mcp-config --mcp-config ...");
             Console.ResetColor();
 
             return await RunProcessAsync(startInfo, ct);
@@ -85,6 +100,24 @@ public class ProcessRunner : IProcessRunner
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
+        };
+
+        return await RunProcessAsync(startInfo, ct);
+    }
+
+    public async Task<ProcessResult> RunBashAsync(string command, string? workingDirectory = null, CancellationToken ct = default)
+    {
+        var effectiveWorkingDir = workingDirectory ?? Path.Combine(DefaultWorkingDirectory, "src", "uno");
+
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = "powershell.exe",
+            Arguments = $"-NoProfile -NonInteractive -Command \"{command}\"",
+            WorkingDirectory = effectiveWorkingDir,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = false
         };
 
         return await RunProcessAsync(startInfo, ct);

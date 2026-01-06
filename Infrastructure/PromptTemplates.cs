@@ -1,4 +1,5 @@
 using Automation.Cli.Contracts;
+using Automation.Cli.Contracts.Classification;
 
 namespace Automation.Cli.Infrastructure;
 
@@ -193,6 +194,147 @@ public static class PromptTemplates
         5. Fuehre am Ende 'dotnet build' aus
 
         WICHTIG: Implementiere ALLE Tasks vollstaendig!
+        """;
+
+    /// <summary>
+    /// Kombinierter Prompt fuer Fast-Mode: Alles in einem Aufruf.
+    /// </summary>
+    public static string GetFastImplementPrompt(StepContext context) => $"""
+        {context.GetClassifiedContext()}
+
+        === VOLLSTAENDIGE IMPLEMENTIERUNG ===
+
+        Du sollst jetzt die gesamte Implementierung in einem Durchgang durchfuehren.
+
+        TICKET-SUMMARY: {context.Classification?.Summary ?? context.TicketDescription}
+
+        SCOPE: {context.Classification?.Scope.ToString() ?? "All"}
+
+        TASKS:
+        {string.Join("\n", context.Tasks.Select((t, i) => $"  {i + 1}. {t}"))}
+
+        === IMPLEMENTIERUNGS-PLAN ===
+
+        Fuehre folgende Schritte der Reihe nach aus:
+
+        {GetImplementationSteps(context)}
+
+        === REGELN ===
+
+        1. Lies zuerst CLAUDE.md fuer die Projektstruktur und Konventionen
+        2. Verwende die passenden Skills wenn verfuegbar
+        3. Erstelle Seeder fuer neue Entities mit realistischen Testdaten
+        4. Fuehre am Ende 'dotnet build' aus um Fehler zu pruefen
+        5. Bei Build-Fehlern: Behebe sie sofort!
+
+        WICHTIG:
+        - Du MUSST die Dateien tatsaechlich erstellen/aendern - nicht nur beschreiben!
+        - Implementiere ALLES vollstaendig in diesem Durchgang!
+        - Beginne JETZT mit der Implementierung!
+        """;
+
+    private static string GetImplementationSteps(StepContext context)
+    {
+        var steps = new List<string>();
+        var scope = context.Classification?.Scope ?? LayerScope.All;
+        var stepNumber = 1;
+
+        if (scope.HasFlag(LayerScope.Data))
+        {
+            steps.Add($"""
+                {stepNumber}. DATA/ENTITIES:
+                   - Erstelle/aendere Entity-Klassen in src/api/src/Features/
+                   - Erstelle EntityConfiguration fuer EF Core
+                   - Erstelle Seeder mit realistischen Testdaten
+                   - Nutze Skill: uno-dev:entity-authoring
+                """);
+            stepNumber++;
+        }
+
+        if (scope.HasFlag(LayerScope.Api))
+        {
+            steps.Add($"""
+                {stepNumber}. API/ENDPOINTS:
+                   - Erstelle/aendere Request/Response DTOs in Contracts
+                   - Erstelle/aendere Handler fuer Mediator
+                   - Erstelle/aendere Endpoints
+                   - Nutze Skill: uno-dev:api-endpoint-authoring
+                """);
+            stepNumber++;
+        }
+
+        if (scope.HasFlag(LayerScope.Frontend))
+        {
+            steps.Add($"""
+                {stepNumber}. FRONTEND/UNO:
+                   - WICHTIG: Du MUSST zuerst den Uno MCP initialisieren!
+                   - Rufe ZUERST uno_platform_agent_rules_init auf
+                   - Rufe DANACH uno_platform_usage_rules_init auf
+                   - Bei Fragen zur Uno Platform: Nutze uno_platform_docs_search
+                   - Erstelle/aendere HTTP Contracts im ApiClient
+                   - Erstelle/aendere ViewModels
+                   - Erstelle/aendere XAML Pages/Views
+                   - Nutze Skills: uno-dev:viewmodel-authoring, uno-dev:xaml-authoring
+                """);
+            stepNumber++;
+        }
+
+        steps.Add($"""
+            {stepNumber}. BUILD & VERIFY:
+               - Fuehre 'dotnet build' aus
+               - Behebe alle Build-Fehler
+               - Stelle sicher dass alles kompiliert
+            """);
+
+        return string.Join("\n\n", steps);
+    }
+
+    /// <summary>
+    /// Separater Prompt fuer visuelle Validierung - wird nach der Implementierung ausgefuehrt.
+    /// </summary>
+    public static string GetVisualValidationPrompt(StepContext context) => $"""
+        === VISUELLE VALIDIERUNG ===
+
+        Die Implementierung wurde abgeschlossen. Jetzt musst du die Aenderungen visuell validieren.
+
+        TICKET: {context.Classification?.Summary ?? context.TicketDescription}
+
+        DEINE AUFGABE:
+        1. Pruefe ob die App laeuft
+        2. Mache einen Screenshot
+        3. Analysiere ob die Aenderungen korrekt umgesetzt wurden
+        4. Beende die App
+
+        === SCHRITT 1: APP-STATUS PRUEFEN ===
+
+        Rufe das MCP Tool auf:
+        -> mcp__uno-app__uno_app_get_runtime_info
+
+        Falls "No connected app" zurueckkommt:
+        - Warte 10 Sekunden (Start-Sleep -Seconds 10)
+        - Versuche erneut (max 3 Versuche)
+
+        === SCHRITT 2: SCREENSHOT ERSTELLEN ===
+
+        Rufe das MCP Tool auf:
+        -> mcp__uno-app__uno_app_get_screenshot
+
+        Analysiere das Bild und beschreibe:
+        - Was siehst du?
+        - Sind die gewuenschten Aenderungen sichtbar?
+        - Gibt es Probleme mit dem Layout?
+
+        === SCHRITT 3: APP BEENDEN ===
+
+        Rufe das MCP Tool auf:
+        -> mcp__uno-app__uno_app_close
+
+        === ZUSAMMENFASSUNG ===
+
+        Gib am Ende eine kurze Zusammenfassung:
+        - Screenshot erfolgreich: Ja/Nein
+        - Aenderungen sichtbar: Ja/Nein
+        - Eventuelle Probleme
         """;
 
     public static string GetSeedingPrompt(StepContext context) =>
