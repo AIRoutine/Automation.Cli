@@ -136,8 +136,36 @@ fastCommand.SetHandler(async (ticket) =>
 
 }, fastTicketArg);
 
+// === start-app Command (App im Hintergrund starten) ===
+var startAppCommand = new Command("start-app", "Startet die Uno App im Hintergrund");
+startAppCommand.SetHandler(async () =>
+{
+    Console.ForegroundColor = ConsoleColor.Cyan;
+    Console.WriteLine("===============================================");
+    Console.WriteLine("   STARTING UNO APP");
+    Console.WriteLine("===============================================");
+    Console.ResetColor();
+
+    var processRunner = host.Services.GetRequiredService<IProcessRunner>();
+    var result = await processRunner.RunBashAsync(@"& '.\run-uno-net10-desktop.ps1' -Background");
+
+    if (result.Success)
+    {
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"   App gestartet: {result.Output}");
+    }
+    else
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"   Fehler: {result.Error}");
+        Environment.ExitCode = 1;
+    }
+    Console.ResetColor();
+    Console.WriteLine("===============================================");
+});
+
 // === validate Command (nur visuelle Validierung) ===
-var validateCommand = new Command("validate", "Startet die App und validiert visuell (ohne Implementierung)");
+var validateCommand = new Command("validate", "Validiert die laufende App visuell (startet App falls noetig)");
 var validateDescArg = new Argument<string>("description", () => "Pruefe ob die App korrekt aussieht", "Was geprueft werden soll");
 validateCommand.AddArgument(validateDescArg);
 validateCommand.SetHandler(async (description) =>
@@ -231,6 +259,7 @@ stepCommand.SetHandler(async (stepName, ticket) =>
 // Commands registrieren
 rootCommand.AddCommand(smartCommand);
 rootCommand.AddCommand(fastCommand);
+rootCommand.AddCommand(startAppCommand);
 rootCommand.AddCommand(validateCommand);
 rootCommand.AddCommand(classifyCommand);
 rootCommand.AddCommand(stepCommand);
