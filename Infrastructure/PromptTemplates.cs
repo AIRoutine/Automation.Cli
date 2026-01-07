@@ -377,4 +377,47 @@ public static class PromptTemplates
         task.Contains("Entity", StringComparison.OrdinalIgnoreCase) ||
         task.Contains("Entities", StringComparison.OrdinalIgnoreCase) ||
         task.Contains("Daten", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Standalone visuelle Validierung - ohne vorherige Implementierung.
+    /// Fuer manuelle Tests nach eigener Implementierung.
+    /// </summary>
+    public static string GetStandaloneVisualValidationPrompt(StepContext context) => $"""
+        === VISUELLE VALIDIERUNG (STANDALONE) ===
+
+        Pruefe die aktuell laufende Uno App visuell.
+
+        BESCHREIBUNG WAS GEPRUEFT WERDEN SOLL:
+        {context.TicketDescription}
+
+        === SCHRITT 1: SCREENSHOT ERSTELLEN ===
+
+        1. Rufe uno_app_get_screenshot auf
+        2. Analysiere das Bild:
+           * Was siehst du?
+           * Entspricht die UI der Beschreibung?
+           * Gibt es Layout-Probleme?
+           * Sind alle Elemente korrekt positioniert?
+
+        === SCHRITT 2: APP BEENDEN ===
+
+        Nach der Analyse:
+        - Rufe uno_app_close auf
+
+        === ANTWORT-FORMAT ===
+
+        WICHTIG: Antworte NUR mit folgendem JSON-Format (keine andere Ausgabe!):
+
+        {VisualValidationJsonTemplate}
+
+        REGELN:
+        - status: "success" wenn UI korrekt aussieht, "failed" bei Problemen
+        - appRunning: true (App ist bereits verbunden)
+        - screenshotTaken: true wenn Screenshot erstellt wurde
+        - changesVisible: true wenn UI der Beschreibung entspricht
+        - issues: Array mit gefundenen Problemen (leer wenn keine)
+        - summary: Kurze menschenlesbare Zusammenfassung was du siehst
+
+        WICHTIG: Gib NUR das JSON zurueck, keine Erklaerungen davor oder danach!
+        """;
 }

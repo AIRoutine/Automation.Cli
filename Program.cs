@@ -136,6 +136,52 @@ fastCommand.SetHandler(async (ticket) =>
 
 }, fastTicketArg);
 
+// === validate Command (nur visuelle Validierung) ===
+var validateCommand = new Command("validate", "Startet die App und validiert visuell (ohne Implementierung)");
+var validateDescArg = new Argument<string>("description", () => "Pruefe ob die App korrekt aussieht", "Was geprueft werden soll");
+validateCommand.AddArgument(validateDescArg);
+validateCommand.SetHandler(async (description) =>
+{
+    Console.ForegroundColor = ConsoleColor.Cyan;
+    Console.WriteLine("===============================================");
+    Console.WriteLine("   VISUAL VALIDATION MODE");
+    Console.WriteLine("===============================================");
+    Console.ResetColor();
+    Console.WriteLine($"Pruefe: {description}");
+    Console.WriteLine();
+
+    var context = new StepContext(description);
+
+    // VisualValidateStep direkt ausfuehren
+    var validateStep = registry.GetStep("visual-validate");
+    if (validateStep is null)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("VisualValidateStep nicht gefunden!");
+        Console.ResetColor();
+        Environment.ExitCode = 1;
+        return;
+    }
+
+    var result = await validateStep.ExecuteAsync(context);
+    Environment.ExitCode = result.Success ? 0 : 1;
+
+    Console.WriteLine();
+    if (result.Success)
+    {
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("   VALIDIERUNG ERFOLGREICH");
+    }
+    else
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"   VALIDIERUNG FEHLGESCHLAGEN: {result.Error}");
+    }
+    Console.ResetColor();
+    Console.WriteLine("===============================================");
+
+}, validateDescArg);
+
 // === list-steps Command ===
 var listStepsCommand = new Command("list-steps", "Liste aller verfuegbaren Steps");
 listStepsCommand.SetHandler(() =>
@@ -185,6 +231,7 @@ stepCommand.SetHandler(async (stepName, ticket) =>
 // Commands registrieren
 rootCommand.AddCommand(smartCommand);
 rootCommand.AddCommand(fastCommand);
+rootCommand.AddCommand(validateCommand);
 rootCommand.AddCommand(classifyCommand);
 rootCommand.AddCommand(stepCommand);
 rootCommand.AddCommand(listStepsCommand);
