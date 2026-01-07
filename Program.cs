@@ -136,28 +136,81 @@ fastCommand.SetHandler(async (ticket) =>
 
 }, fastTicketArg);
 
-// === start-app Command (App im Hintergrund starten) ===
-var startAppCommand = new Command("start-app", "Startet die Uno App im Hintergrund");
+// === start-app Command (API + Uno App starten) ===
+var startAppCommand = new Command("start-app", "Startet API (falls noetig) und Uno App im Hintergrund");
 startAppCommand.SetHandler(async () =>
 {
     Console.ForegroundColor = ConsoleColor.Cyan;
     Console.WriteLine("===============================================");
-    Console.WriteLine("   STARTING UNO APP");
+    Console.WriteLine("   STARTING APPS");
     Console.WriteLine("===============================================");
     Console.ResetColor();
 
     var processRunner = host.Services.GetRequiredService<IProcessRunner>();
-    var result = await processRunner.RunBashAsync(@"& '.\run-uno-net10-desktop.ps1' -Background");
 
-    if (result.Success)
+    // 1. Pruefen ob API bereits laeuft (Port 5292)
+    Console.WriteLine("Pruefe ob API laeuft...");
+    var apiCheck = await processRunner.RunBashAsync("(Test-NetConnection -ComputerName localhost -Port 5292 -WarningAction SilentlyContinue).TcpTestSucceeded");
+    var apiRunning = apiCheck.Success && apiCheck.Output.Trim().Equals("True", StringComparison.OrdinalIgnoreCase);
+
+    if (!apiRunning)
+    {
+        Console.WriteLine("API nicht gestartet - starte API...");
+        var apiResult = await processRunner.RunBashAsync(
+            @"Start-Process powershell -ArgumentList '-NoProfile', '-File', '.\run-api.ps1' -WindowStyle Normal",
+            Path.Combine(Environment.CurrentDirectory, "..", "..", "..", "src", "api"));
+
+        if (!apiResult.Success)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"API Start fehlgeschlagen: {apiResult.Error}");
+            Console.ResetColor();
+            Environment.ExitCode = 1;
+            return;
+        }
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("API gestartet");
+        Console.ResetColor();
+
+        // Kurz warten bis API bereit ist
+        await Task.Delay(3000);
+    }
+    else
     {
         Console.ForegroundColor = ConsoleColor.Green;
-        Console.WriteLine($"   App gestartet: {result.Output}");
+        Console.WriteLine("API laeuft bereits");
+        Console.ResetColor();
+    }
+
+    // 2. Uno DevServer login + start
+    Console.WriteLine("Uno DevServer login + start...");
+    var devServerResult = await processRunner.RunBashAsync(@"& '.\run-devserver.ps1'");
+    if (devServerResult.Success)
+    {
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("DevServer gestartet");
+        Console.ResetColor();
+    }
+    else
+    {
+        Console.ForegroundColor = ConsoleColor.Yellow;
+        Console.WriteLine($"DevServer Warnung: {devServerResult.Error}");
+        Console.ResetColor();
+    }
+
+    // 3. Uno App starten
+    Console.WriteLine("Starte Uno App...");
+    var unoResult = await processRunner.RunBashAsync(@"& '.\run-uno-net10-desktop.ps1' -Background");
+
+    if (unoResult.Success)
+    {
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"Uno App gestartet (PID: {unoResult.Output.Trim().Split('\n').Last()})");
     }
     else
     {
         Console.ForegroundColor = ConsoleColor.Red;
-        Console.WriteLine($"   Fehler: {result.Error}");
+        Console.WriteLine($"Uno App Start fehlgeschlagen: {unoResult.Error}");
         Environment.ExitCode = 1;
     }
     Console.ResetColor();
