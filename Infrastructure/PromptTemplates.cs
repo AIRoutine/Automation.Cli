@@ -289,52 +289,72 @@ public static class PromptTemplates
         return string.Join("\n\n", steps);
     }
 
+    private const string VisualValidationJsonTemplate = """
+        ```json
+        {
+          "status": "success|skipped|failed",
+          "appRunning": true,
+          "screenshotTaken": true,
+          "changesVisible": true,
+          "issues": ["issue1", "issue2"],
+          "summary": "Kurze Beschreibung des Ergebnisses"
+        }
+        ```
+        """;
+
     /// <summary>
     /// Separater Prompt fuer visuelle Validierung - wird nach der Implementierung ausgefuehrt.
+    /// Erwartet strukturierte JSON-Antwort fuer maschinelle Auswertung.
     /// </summary>
     public static string GetVisualValidationPrompt(StepContext context) => $"""
         === VISUELLE VALIDIERUNG ===
 
-        Die Implementierung wurde abgeschlossen. Jetzt musst du die Aenderungen visuell validieren.
+        Die Implementierung wurde abgeschlossen. Validiere die Aenderungen visuell.
 
         TICKET: {context.Classification?.Summary ?? context.TicketDescription}
 
-        DEINE AUFGABE:
-        1. Pruefe ob die App laeuft
-        2. Mache einen Screenshot
-        3. Analysiere ob die Aenderungen korrekt umgesetzt wurden
-        4. Beende die App
-
         === SCHRITT 1: APP-STATUS PRUEFEN ===
 
-        Rufe das MCP Tool auf:
-        -> mcp__uno-app__uno_app_get_runtime_info
+        Pruefe ob uno-app MCP Tools verfuegbar sind:
+        - Versuche uno_app_get_runtime_info aufzurufen
+        - Falls Tool nicht verfuegbar oder Fehler: setze status="skipped"
 
-        Falls "No connected app" zurueckkommt:
-        - Warte 10 Sekunden (Start-Sleep -Seconds 10)
+        Falls App nicht laeuft ("No connected app"):
+        - Warte 5 Sekunden mit Bash: Start-Sleep -Seconds 5
         - Versuche erneut (max 3 Versuche)
+        - Falls nach 3 Versuchen keine App: setze appRunning=false
 
         === SCHRITT 2: SCREENSHOT ERSTELLEN ===
 
-        Rufe das MCP Tool auf:
-        -> mcp__uno-app__uno_app_get_screenshot
-
-        Analysiere das Bild und beschreibe:
-        - Was siehst du?
-        - Sind die gewuenschten Aenderungen sichtbar?
-        - Gibt es Probleme mit dem Layout?
+        Nur wenn App laeuft (appRunning=true):
+        - Rufe uno_app_get_screenshot auf
+        - Analysiere das Bild:
+          * Was siehst du?
+          * Sind die gewuenschten Aenderungen sichtbar?
+          * Gibt es Layout-Probleme?
+        - Setze screenshotTaken=true bei Erfolg
+        - Setze changesVisible=true wenn Ticket-Aenderungen sichtbar
 
         === SCHRITT 3: APP BEENDEN ===
 
-        Rufe das MCP Tool auf:
-        -> mcp__uno-app__uno_app_close
+        Nur wenn App laeuft:
+        - Rufe uno_app_close auf
 
-        === ZUSAMMENFASSUNG ===
+        === ANTWORT-FORMAT ===
 
-        Gib am Ende eine kurze Zusammenfassung:
-        - Screenshot erfolgreich: Ja/Nein
-        - Aenderungen sichtbar: Ja/Nein
-        - Eventuelle Probleme
+        WICHTIG: Antworte NUR mit folgendem JSON-Format (keine andere Ausgabe!):
+
+        {VisualValidationJsonTemplate}
+
+        REGELN:
+        - status: "success" wenn alles OK, "skipped" wenn MCP nicht verfuegbar, "failed" bei Fehlern
+        - appRunning: true wenn App erfolgreich verbunden war
+        - screenshotTaken: true wenn Screenshot erstellt wurde
+        - changesVisible: true wenn Ticket-Aenderungen im Screenshot sichtbar, null wenn nicht pruefbar
+        - issues: Array mit gefundenen Problemen (leer wenn keine)
+        - summary: Kurze menschenlesbare Zusammenfassung
+
+        WICHTIG: Gib NUR das JSON zurueck, keine Erklaerungen davor oder danach!
         """;
 
     public static string GetSeedingPrompt(StepContext context) =>
