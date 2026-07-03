@@ -5,7 +5,7 @@ using Automation.Cli.Contracts;
 using Automation.Cli.Contracts.Classification;
 using Automation.Cli.Contracts.Requests;
 using Automation.Cli.Infrastructure;
-using Shiny.Extensions.DependencyInjection;
+using Shiny;
 using Shiny.Mediator;
 
 namespace Automation.Cli.Handlers;

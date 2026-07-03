@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using Shiny.Extensions.DependencyInjection;
+using Shiny;
 
 namespace Automation.Cli.Infrastructure;
 

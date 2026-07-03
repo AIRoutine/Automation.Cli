@@ -2,7 +2,7 @@ using Automation.Cli.Contracts.Pipeline;
 using Automation.Cli.Infrastructure;
 using Automation.Cli.Steps;
 using Microsoft.Extensions.DependencyInjection;
-using Shiny.Extensions.DependencyInjection;
+using Shiny;
 using Shiny.Mediator;
 
 namespace Automation.Cli.Configuration;
@@ -16,7 +16,7 @@ public static class ServiceCollectionExtensions
     {
         // Auto-registriert alle [Service] Attribute
         // Inkludiert: ProcessRunner, StepRegistry, PipelineExecutor, ClassifyTicketHandler
-        services.AddShinyServiceRegistry();
+        services.AddGeneratedServices();
 
         // Mediator registrieren
         services.AddShinyMediator();

@@ -1,7 +1,7 @@
 using Automation.Cli.Contracts;
 using Automation.Cli.Contracts.Classification;
 using Automation.Cli.Contracts.Pipeline;
-using Shiny.Extensions.DependencyInjection;
+using Shiny;
 
 namespace Automation.Cli.Infrastructure;
 
